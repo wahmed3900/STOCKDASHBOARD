@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+pydantic[email]
+yfinance
+pandas
+pymongo
+bcrypt
+PyJWT
+stripe
+google-genai
+google-generativeai
+
+httpx
+python-dotenv

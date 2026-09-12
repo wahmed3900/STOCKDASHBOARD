@@ -1,0 +1,4 @@
+PUT https://api.render.com/v1/services/{serviceId}/env-vars/{envVarKey}
+khttps://dashboard.render.com/web/srv-d9l8ttn10e5c73d7pgbg/env
+https://dashboard.render.com/web/srv-d9l8ttn10e5c73d7pgbg/env
+                                 ↑ this is your service ID

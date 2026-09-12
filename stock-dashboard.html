@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Dashboard – AAPL</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    body {
+      background: #0b0f17; display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; margin: 0; padding: 1rem;
+    }
+    .dashboard {
+      background: #1a1f2b; border-radius: 2rem; padding: 2rem 2.5rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6); width: 380px; border: 1px solid #2d3748;
+    }
+    .ticker {
+      font-size: 2rem; font-weight: 700; letter-spacing: 1px; color: #e2e8f0;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .ticker span {
+      background: #2d3748; font-size: 0.8rem; font-weight: 500;
+      padding: 0.2rem 0.8rem; border-radius: 20px; color: #94a3b8; letter-spacing: 0.3px;
+    }
+    .price-section { margin: 1.5rem 0 1rem; }
+    .price-label {
+      font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;
+      color: #64748b; margin-bottom: 0.25rem;
+    }
+    .price { font-size: 2.8rem; font-weight: 700; color: #f1f5f9; line-height: 1.2; }
+    .price.loading { color: #475569; font-size: 2rem; }
+    .rsi-section {
+      display: flex; justify-content: space-between; align-items: center;
+      background: #0f131c; padding: 1rem 1.5rem; border-radius: 1.5rem;
+      margin-top: 1.5rem; border: 1px solid #2d3748;
+    }
+    .rsi-label { font-size: 0.9rem; font-weight: 500; color: #94a3b8; letter-spacing: 0.5px; }
+    .rsi-value { font-size: 1.8rem; font-weight: 700; color: #e2e8f0; transition: color 0.2s; }
+    .rsi-value.oversold   { color: #4ade80; }
+    .rsi-value.overbought { color: #f87171; }
+    .rsi-value.neutral    { color: #facc15; }
+    .error-message {
+      color: #f87171; font-size: 0.85rem; margin-top: 1rem; padding: 0.5rem 1rem;
+      background: #2d1a1a; border-radius: 1rem; border-left: 4px solid #f87171;
+      display: none;
+    }
+    .error-message.show { display: block; }
+    .meta { font-size: 0.7rem; color: #475569; margin-top: 1.5rem; text-align: center; }
+    .refresh-btn {
+      background: #2d3748; border: none; color: #cbd5e1; padding: 0.4rem 1rem;
+      border-radius: 30px; font-size: 0.75rem; font-weight: 500; cursor: pointer;
+      transition: background 0.2s; margin-top: 0.75rem; width: 100%;
+    }
+    .refresh-btn:hover { background: #3b4a5f; }
+    .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <div class="ticker">AAPL <span>NASDAQ</span></div>
+
+    <div class="price-section">
+      <div class="price-label">Price</div>
+      <div class="price loading" id="priceDisplay">$---.--</div>
+    </div>
+
+    <div class="rsi-section">
+      <div class="rsi-label">RSI (14)</div>
+      <div class="rsi-value" id="rsiDisplay">--</div>
+    </div>
+
+    <div class="error-message" id="errorMessage"></div>
+
+    <button class="refresh-btn" id="refreshBtn">↻ Refresh data</button>
+    <div class="meta">Loading...</div>
+  </div>
+
+  <script>
+    const API = '/api/stock/AAPL';
+
+    const priceDisplay = document.getElementById('priceDisplay');
+    const rsiDisplay   = document.getElementById('rsiDisplay');
+    const errorMessage = document.getElementById('errorMessage');
+    const refreshBtn   = document.getElementById('refreshBtn');
+    const metaEl       = document.querySelector('.meta');
+
+    function showError(msg) {
+      errorMessage.textContent = msg;
+      errorMessage.classList.add('show');
+      priceDisplay.textContent = '$N/A';
+      priceDisplay.classList.remove('loading');
+      rsiDisplay.textContent = 'N/A';
+      rsiDisplay.className = 'rsi-value';
+    }
+
+    function clearError() {
+      errorMessage.textContent = '';
+      errorMessage.classList.remove('show');
+    }
+
+    function applyRsiClass(v) {
+      rsiDisplay.classList.remove('oversold', 'overbought', 'neutral');
+      if (v >= 70) rsiDisplay.classList.add('overbought');
+      else if (v <= 30) rsiDisplay.classList.add('oversold');
+      else rsiDisplay.classList.add('neutral');
+    }
+
+    async function loadDashboard() {
+      clearError();
+      refreshBtn.disabled = true;
+      priceDisplay.textContent = '$---.--';
+      priceDisplay.classList.add('loading');
+      rsiDisplay.textContent = '--';
+      rsiDisplay.className = 'rsi-value';
+
+      try {
+        const res = await fetch(API);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
+
+        const price = data.current_price;
+        if (typeof price !== 'number') throw new Error('No price in response');
+        priceDisplay.textContent = '$' + price.toFixed(2);
+        priceDisplay.classList.remove('loading');
+
+        const rsi = data.technical_indicators && data.technical_indicators.rsi;
+        if (typeof rsi === 'number') {
+          rsiDisplay.textContent = rsi.toFixed(1);
+          applyRsiClass(rsi);
+        } else {
+          rsiDisplay.textContent = 'N/A';
+        }
+
+        const chg = (typeof data.change_pct === 'number')
+          ? (data.change_pct > 0 ? '+' : '') + data.change_pct.toFixed(2) + '%'
+          : '';
+        metaEl.textContent = (data.source || 'unknown') + ' · ' + chg;
+      } catch (err) {
+        showError('⚠ ' + err.message);
+      } finally {
+        refreshBtn.disabled = false;
+      }
+    }
+
+    refreshBtn.addEventListener('click', loadDashboard);
+    loadDashboard();
+  </script>
+</body>
+</html>

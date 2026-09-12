@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+backups/
+main.py.*
+market_data.py.*
+package.json
+tsconfig.json
+html
+Verify
+static/
